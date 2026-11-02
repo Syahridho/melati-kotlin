@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Adaptive icon (Android 8+): latar putih polos, logo melati_big di tengah
+     sebagai foreground. Foreground PNG (mipmap-*/ic_launcher_foreground.png)
+     sudah diberi ruang aman agar tidak terpotong oleh mask bulat/squircle.
+
+     monochrome sengaja tidak dipakai: logo berwarna tidak punya siluet satu
+     warna, dan tanpa tag ini ikon bertema tetap memakai ikon berwarna. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+</adaptive-icon>

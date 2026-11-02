@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ikon system splash (Android 12+) sengaja transparan: splash bawaan sistem
+     hanya menampilkan warna latar Melati, lalu langsung diteruskan ke splash
+     Compose yang memuat logo + wordmark. Ini mencegah ikon launcher default
+     muncul sekilas sebelum branding tampil. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@android:color/transparent" />
+</shape>

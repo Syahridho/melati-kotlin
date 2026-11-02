@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- windowBackground disamakan dengan background Compose supaya transisi
+         dari window ke frame pertama (splash) tidak berkedip putih.
+         Bilah status dibuat sewarna latar dengan ikon gelap, jadi tidak ada
+         pita warna yang muncul sebelum Compose mengambil alih. -->
+    <style name="Theme.Melati" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/melati_background</item>
+        <item name="android:statusBarColor">@color/melati_background</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>

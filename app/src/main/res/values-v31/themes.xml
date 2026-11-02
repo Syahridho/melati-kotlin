@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Android 12+ menampilkan splash bawaan sistem sebelum Compose sempat
+         menggambar. Warnanya disamakan dengan latar aplikasi dan ikonnya dibuat
+         transparan supaya tidak ada ikon launcher default yang berkedip; branding
+         sebenarnya ada di SplashScreen.kt. -->
+    <style name="Theme.Melati" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/melati_background</item>
+        <item name="android:statusBarColor">@color/melati_background</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowSplashScreenBackground">@color/melati_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_transparent</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@color/melati_background</item>
+    </style>
+</resources>
