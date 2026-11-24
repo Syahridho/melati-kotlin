@@ -45,6 +45,33 @@ class TicketHistoryStore(private val context: Context) {
         }
     }
 
+    /**
+     * Memperbarui status tiket di Riwayat setelah aksi sukses (mis. RESOLVED
+     * setelah complete). Entri baru dibuat hanya bila [status] diberikan dan
+     * entri belum ada.
+     */
+    suspend fun applySuccessfulAction(
+        number: String,
+        status: TicketStatus? = null
+    ) {
+        if (status == null) return
+        val cleanNumber = number.trim()
+        if (cleanNumber.isEmpty()) return
+
+        context.historyDataStore.edit { preferences ->
+            val current = decode(preferences[HISTORY_KEY])
+            val existing = current.firstOrNull { it.number == cleanNumber }
+            val updatedEntry = existing.afterSuccessfulAction(
+                number = cleanNumber,
+                status = status,
+                nowMillis = System.currentTimeMillis()
+            ) ?: return@edit
+            val updated = (listOf(updatedEntry) + current.filterNot { it.number == cleanNumber })
+                .sortedByDescending { it.savedAtEpochMillis }
+            preferences[HISTORY_KEY] = encode(updated)
+        }
+    }
+
     suspend fun remove(number: String) {
         context.historyDataStore.edit { preferences ->
             val current = decode(preferences[HISTORY_KEY])
@@ -101,4 +128,30 @@ class TicketHistoryStore(private val context: Context) {
     private companion object {
         val HISTORY_KEY = stringPreferencesKey("history_v1")
     }
+}
+
+/**
+ * Hasil penggabungan setelah aksi sukses, tanpa DataStore agar teruji.
+ * - Entri ada: status baru hanya menimpa bila diberikan.
+ * - Entri belum ada: dibuat hanya bila [status] diberikan.
+ */
+internal fun TicketSummary?.afterSuccessfulAction(
+    number: String,
+    status: TicketStatus?,
+    nowMillis: Long
+): TicketSummary? {
+    if (this != null) {
+        return copy(status = status ?: this.status)
+    }
+    if (status == null) return null
+
+    val cleanNumber = number.trim()
+    return TicketSummary(
+        number = cleanNumber,
+        type = TicketType.fromNumber(cleanNumber) ?: TicketType.LAPOR,
+        summary = "Tiket $cleanNumber",
+        createdAt = null,
+        status = status,
+        savedAtEpochMillis = nowMillis
+    )
 }

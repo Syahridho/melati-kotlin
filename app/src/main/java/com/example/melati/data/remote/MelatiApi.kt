@@ -1,9 +1,12 @@
 package com.example.melati.data.remote
 
 import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import okhttp3.ResponseBody
 import retrofit2.Response
+import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Headers
 import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.Part
@@ -34,15 +37,23 @@ interface MelatiApi {
     @GET("api/check")
     suspend fun checkTicket(@Query("ticket_number") ticketNumber: String): Response<ResponseBody>
 
-    /** PRD §5.2 — balasan pelapor; selalu multipart karena mendukung lampiran. */
+    @Headers("Content-Type: application/json")
+    @POST("api/check/{ticketNumber}/reply")
+    suspend fun replyTicketJson(
+        @Path(value = "ticketNumber", encoded = true) ticketNumber: String,
+        @Body body: RequestBody
+    ): Response<ResponseBody>
+
     @Multipart
     @POST("api/check/{ticketNumber}/reply")
-    suspend fun replyTicket(
-        @Path("ticketNumber") ticketNumber: String,
+    suspend fun replyTicketMultipart(
+        @Path(value = "ticketNumber", encoded = true) ticketNumber: String,
         @Part parts: List<MultipartBody.Part>
     ): Response<ResponseBody>
 
     /** PRD §5.2 — tandai tiket selesai. */
     @POST("api/check/{ticketNumber}/complete")
-    suspend fun completeTicket(@Path("ticketNumber") ticketNumber: String): Response<ResponseBody>
+    suspend fun completeTicket(
+        @Path(value = "ticketNumber", encoded = true) ticketNumber: String
+    ): Response<ResponseBody>
 }

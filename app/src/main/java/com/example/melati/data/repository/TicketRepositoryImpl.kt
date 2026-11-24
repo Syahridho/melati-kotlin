@@ -1,5 +1,6 @@
 package com.example.melati.data.repository
 
+import android.util.Log
 import com.example.melati.BuildConfig
 import com.example.melati.data.local.TicketHistoryStore
 import com.example.melati.data.remote.ApiException
@@ -12,17 +13,24 @@ import com.example.melati.domain.model.TicketCreated
 import com.example.melati.domain.model.TicketDraft
 import com.example.melati.domain.model.TicketStatus
 import com.example.melati.domain.model.TicketSummary
+import com.example.melati.domain.model.TicketType
 import com.example.melati.domain.repository.TicketRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.ResponseBody
 import retrofit2.Response
 import java.io.File
 import java.io.IOException
 import java.net.SocketTimeoutException
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
+import java.time.format.DateTimeFormatter
 
 /**
  * Implementasi tunggal [TicketRepository].
@@ -58,13 +66,35 @@ class TicketRepositoryImpl(
         body: String,
         attachments: List<Attachment>
     ): Result<Unit> = runCatchingApi {
-        api.replyTicket(number, buildReplyParts(body, attachments)).ensureSuccess()
+        val encodedNumber = encodeTicketNumber(number)
+        if (attachments.isEmpty()) {
+            val jsonString = buildReplyJson(body)
+            if (BuildConfig.DEBUG) {
+                Log.d("TicketRepository", "replyToTicket JSON payload prepared for $encodedNumber")
+            }
+            val requestBody = jsonString.toRequestBody("application/json; charset=utf-8".toMediaTypeOrNull())
+            api.replyTicketJson(encodedNumber, requestBody).ensureSuccess()
+        } else {
+            val parts = buildReplyParts(body, attachments)
+            api.replyTicketMultipart(encodedNumber, parts).ensureSuccess()
+        }
     }
 
     override suspend fun completeTicket(number: String): Result<Unit> = runCatchingApi {
-        api.completeTicket(number).ensureSuccess()
-        val current = historyStore.history.first().firstOrNull { it.number == number }
-        if (current != null) historyStore.save(current.copy(status = TicketStatus.RESOLVED))
+        val encodedNumber = encodeTicketNumber(number)
+        api.completeTicket(encodedNumber).ensureSuccess()
+        try {
+            historyStore.applySuccessfulAction(number, TicketStatus.RESOLVED)
+        } catch (e: IOException) {
+            // Status di server sudah berubah; jangan laporkan complete gagal
+            // hanya karena penyimpanan lokal bermasalah.
+            Log.w("TicketRepository", "Gagal menyimpan status selesai ke Riwayat", e)
+        }
+    }
+
+    private fun encodeTicketNumber(number: String): String {
+        return URLEncoder.encode(number.trim(), StandardCharsets.UTF_8.name())
+            .replace("+", "%20")
     }
 
     override suspend fun saveToHistory(summary: TicketSummary) = historyStore.save(summary)
@@ -76,41 +106,6 @@ class TicketRepositoryImpl(
     // ---------------------------------------------------------------------
     // Request building
     // ---------------------------------------------------------------------
-
-    private fun buildCreateParts(draft: TicketDraft): List<MultipartBody.Part> {
-        val parts = mutableListOf<MultipartBody.Part>()
-
-        fun addField(name: String, value: String?) {
-            if (!value.isNullOrBlank()) parts += MultipartBody.Part.createFormData(name, value)
-        }
-
-        addField("channel_id", CHANNEL_ID)
-        addField("classification", draft.type.apiValue)
-        addField("service_type", draft.layanan?.apiValue)
-        addField("reporter_name", draft.reporterName)
-        addField("reporter_email", draft.reporterEmail)
-        addField("reporter_wa", draft.reporterPhone)
-        addField("title", draft.subject)
-        addField("content", draft.body)
-
-        draft.attachments.forEach { parts += it.toPart() }
-        return parts
-    }
-
-    private fun buildReplyParts(message: String, attachments: List<Attachment>): List<MultipartBody.Part> =
-        buildList {
-            add(MultipartBody.Part.createFormData("message", message))
-            attachments.forEach { add(it.toPart()) }
-        }
-
-    private fun Attachment.toPart(): MultipartBody.Part {
-        val path = uri.path ?: throw ApiException(ApiException.Kind.UNKNOWN)
-        return MultipartBody.Part.createFormData(
-            name = "attachments[]",
-            filename = fileName,
-            body = File(path).asRequestBody(mimeType.toMediaTypeOrNull())
-        )
-    }
 
     // ---------------------------------------------------------------------
     // Response handling
@@ -161,9 +156,70 @@ class TicketRepositoryImpl(
         savedAtEpochMillis = System.currentTimeMillis()
     )
 
-    private companion object {
-        /** Datang dari local.properties (`CHANNEL_ID`), default 1 sesuai PRD §5.1. */
-        val CHANNEL_ID = BuildConfig.CHANNEL_ID
-        const val SUMMARY_LENGTH = 120
-    }
 }
+
+/**
+ * Menyusun body multipart `POST /api/tickets`.
+ *
+ * `internal` agar payload bisa diuji unit tanpa membangun Retrofit/OkHttp.
+ * Nama field mengikuti form web Melati (docs/API-ASSUMPTIONS.md §2).
+ * `tanggal_kejadian` hanya dikirim untuk klasifikasi Pengaduan, dengan format
+ * `yyyy-MM-dd` (format ini belum diverifikasi ke backend).
+ */
+internal fun buildCreateParts(draft: TicketDraft): List<MultipartBody.Part> {
+    val parts = mutableListOf<MultipartBody.Part>()
+
+    fun addField(name: String, value: String?) {
+        if (!value.isNullOrBlank()) parts += MultipartBody.Part.createFormData(name, value)
+    }
+
+    addField("channel_id", CHANNEL_ID)
+    addField("classification", draft.type.apiValue)
+    addField("service_type", draft.layanan?.apiValue)
+    addField("reporter_name", draft.reporterName)
+    addField("reporter_email", draft.reporterEmail)
+    addField("reporter_wa", draft.reporterPhone)
+    addField(
+        "tanggal_kejadian",
+        draft.tanggalKejadian
+            ?.takeIf { draft.type == TicketType.LAPOR }
+            ?.format(DateTimeFormatter.ISO_LOCAL_DATE),
+    )
+    addField("title", draft.subject)
+    addField("content", draft.body)
+
+    draft.attachments.forEach { parts += it.toPart() }
+    return parts
+}
+
+/** Body JSON `POST /api/check/{nomor}/reply`. */
+internal fun buildReplyJson(message: String): String =
+    buildJsonObject {
+        put("message", message)
+    }.toString()
+
+/**
+ * Body multipart balasan. Urutan part: `message`, lalu `attachments[]`.
+ * `internal` agar urutan dan nama part bisa diuji unit.
+ */
+internal fun buildReplyParts(
+    message: String,
+    attachments: List<Attachment>
+): List<MultipartBody.Part> = buildList {
+    add(MultipartBody.Part.createFormData("message", message))
+    attachments.forEach { add(it.toPart()) }
+}
+
+private fun Attachment.toPart(): MultipartBody.Part {
+    val path = uri.path ?: throw ApiException(ApiException.Kind.UNKNOWN)
+    return MultipartBody.Part.createFormData(
+        name = "attachments[]",
+        filename = fileName,
+        body = File(path).asRequestBody(mimeType.toMediaTypeOrNull())
+    )
+}
+
+/** Datang dari local.properties (`CHANNEL_ID`), default 1 sesuai PRD §5.1. */
+private val CHANNEL_ID = BuildConfig.CHANNEL_ID
+
+private const val SUMMARY_LENGTH = 120

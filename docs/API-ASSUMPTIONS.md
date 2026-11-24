@@ -30,13 +30,14 @@ Bukti HTTP ada di `docs/QA-REPORT.md` §5.
 | `reporter_name` | nama pelapor |
 | `reporter_email` | opsional |
 | `reporter_wa` | nomor WhatsApp pelapor |
+| `tanggal_kejadian` | hanya untuk klasifikasi `pengaduan`, opsional. Aplikasi mengirim `yyyy-MM-dd`; format ini **belum diverifikasi** ke server. |
 | `title` | judul — **wajib**; server menolak dengan `422 {"title":["Kolom title wajib diisi."]}` bila kosong (PRD menyebut opsional, klien mengikuti server) |
 | `content` | isi laporan |
 | `attachments[]` | maks 3 file, 2 MB/file |
 
-Field tambahan yang dipakai web tetapi **belum ada di aplikasi**: `tanggal_kejadian`,
-`satuan_tugas` (kemungkinan relevan untuk pengaduan PST). Tidak wajib: tiket berhasil
-dibuat tanpa keduanya (`satuan_tugas: null` di respons).
+Field tambahan yang dipakai web tetapi **belum ada di aplikasi**: `satuan_tugas`
+(kemungkinan relevan untuk pengaduan PST). Tidak wajib: tiket berhasil dibuat tanpa
+field itu (`satuan_tugas: null` di respons).
 
 **Catatan validasi server:** `reporter_email` divalidasi lebih ketat daripada klien —
 `budi.e2e@example.com` ditolak dengan

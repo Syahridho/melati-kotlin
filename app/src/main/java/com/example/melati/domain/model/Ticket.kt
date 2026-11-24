@@ -1,12 +1,13 @@
 package com.example.melati.domain.model
 
 import android.net.Uri
+import java.time.LocalDate
 
 /**
  * Klasifikasi tiket. Prefix nomor tiket mengikuti PRD §5.1.
  */
 enum class TicketType(val prefix: String, val label: String, val apiValue: String) {
-    LAPOR("L-", "Lapor", "pengaduan"),
+    LAPOR("L-", "Pengaduan", "pengaduan"),
     ASPIRASI("A-", "Aspirasi", "aspirasi"),
     PERMINTAAN_INFORMASI("I-", "Permintaan Informasi", "permintaan_informasi");
 
@@ -97,7 +98,7 @@ data class Attachment(
     companion object {
         const val MAX_FILES = 3
         const val MAX_BYTES_PER_FILE = 2L * 1024L * 1024L // 2 MB
-        val ALLOWED_MIME_TYPES = setOf("image/jpeg", "application/pdf")
+        val ALLOWED_MIME_TYPES = setOf("image/jpeg", "image/png", "application/pdf")
     }
 }
 
@@ -108,12 +109,15 @@ data class TicketDraft(
     val reporterName: String,
     val reporterEmail: String?,
     val reporterPhone: String?,
+    val tanggalKejadian: java.time.LocalDate?,
     val subject: String?,
     val body: String,
     val attachments: List<Attachment> = emptyList()
 )
 
-/** Hasil pembuatan tiket: nomor tiket yang harus disimpan pengguna. */
+/**
+ * Hasil pembuatan tiket: nomor tiket.
+ */
 data class TicketCreated(
     val number: String,
     val type: TicketType

@@ -2,39 +2,29 @@
 
 package com.example.melati.ui.screens.laporan
 
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 import android.content.ClipData
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.material3.SelectableDates
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,6 +32,8 @@ import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -64,17 +56,13 @@ import com.example.melati.ui.components.ShadcnRadioCard
 import com.example.melati.ui.components.ShadcnRadioGroup
 import com.example.melati.ui.components.ShadcnTextField
 import com.example.melati.ui.components.ShadcnValueBox
-import com.example.melati.ui.theme.MelatiBorder
-import com.example.melati.ui.theme.MelatiDestructive
-import com.example.melati.ui.theme.MelatiDestructiveTint
-import com.example.melati.ui.theme.MelatiForeground
-import com.example.melati.ui.theme.MelatiMutedForeground
-import com.example.melati.ui.theme.MelatiSuccess
-import com.example.melati.ui.theme.MelatiSuccessBg
-import com.example.melati.ui.theme.MelatiTheme
+import com.example.melati.ui.theme.*
 import kotlinx.coroutines.launch
 
 private val ScreenPadding = 20.dp
+
+/** Tampilan tanggal kejadian mengikuti web: dd/mm/yyyy. */
+private val TanggalKejadianFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
 
 @Composable
 fun LaporanScreen(
@@ -96,7 +84,6 @@ fun LaporanScreen(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .imePadding()
             .padding(horizontal = ScreenPadding)
             .padding(top = 16.dp, bottom = 24.dp),
     ) {
@@ -130,56 +117,215 @@ fun LaporanScreen(
                 // Sub-layanan tidak lagi dipilih pengguna: klasifikasi Lapor
                 // selalu memakai PST (ditetapkan di ViewModel).
 
-                // ===== Data pelapor =====
+                // ===== Data pelapor (semua opsional) =====
                 ShadcnTextField(
                     value = state.name,
                     onValueChange = { onEvent(LaporanEvent.NameChanged(it)) },
                     label = stringResource(R.string.label_nama),
+                    hint = stringResource(R.string.hint_opsional),
+                    placeholder = stringResource(R.string.placeholder_nama),
                     error = state.serverFieldErrors[LaporanField.NAME]
                         ?: errorTextFor(state.fieldErrors[LaporanField.NAME]),
+                    keyboardType = KeyboardType.Text,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Next,
+                    ),
                 )
                 ShadcnTextField(
                     value = state.email,
                     onValueChange = { onEvent(LaporanEvent.EmailChanged(it)) },
                     label = stringResource(R.string.label_email),
                     hint = stringResource(R.string.hint_opsional),
+                    placeholder = stringResource(R.string.placeholder_email),
                     error = state.serverFieldErrors[LaporanField.EMAIL]
                         ?: errorTextFor(state.fieldErrors[LaporanField.EMAIL]),
                     keyboardType = KeyboardType.Email,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Email,
+                        imeAction = ImeAction.Next,
+                    ),
                 )
                 ShadcnTextField(
                     value = state.phone,
                     onValueChange = { onEvent(LaporanEvent.PhoneChanged(it)) },
                     label = stringResource(R.string.label_telepon),
                     hint = stringResource(R.string.hint_opsional),
+                    placeholder = stringResource(R.string.placeholder_telepon),
                     error = state.serverFieldErrors[LaporanField.PHONE]
                         ?: errorTextFor(state.fieldErrors[LaporanField.PHONE]),
                     keyboardType = KeyboardType.Phone,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Phone,
+                        imeAction = ImeAction.Next,
+                    ),
                 )
 
-                // ===== Isi laporan =====
+                // ===== Tanggal kejadian (hanya Pengaduan) =====
+                if (state.type == TicketType.LAPOR) {
+                    var showDatePicker by remember { mutableStateOf(false) }
+
+                    if (showDatePicker) {
+                        val datePickerState = rememberDatePickerState(
+                            initialSelectedDateMillis = state.tanggalKejadian
+                                ?.atStartOfDay(ZoneOffset.UTC)
+                                ?.toInstant()
+                                ?.toEpochMilli(),
+                            selectableDates = object : SelectableDates {
+                                override fun isSelectableDate(utcTimeMillis: Long): Boolean =
+                                    !Instant.ofEpochMilli(utcTimeMillis)
+                                        .atZone(ZoneOffset.UTC)
+                                        .toLocalDate()
+                                        .isAfter(LocalDate.now())
+
+                                override fun isSelectableYear(year: Int): Boolean =
+                                    year <= LocalDate.now().year
+                            },
+                        )
+                        DatePickerDialog(
+                            onDismissRequest = { showDatePicker = false },
+                            confirmButton = {
+                                TextButton(onClick = {
+                                    datePickerState.selectedDateMillis?.let { millis ->
+                                        onEvent(
+                                            LaporanEvent.TanggalKejadianChanged(
+                                                Instant.ofEpochMilli(millis)
+                                                    .atZone(ZoneOffset.UTC)
+                                                    .toLocalDate()
+                                            )
+                                        )
+                                    }
+                                    showDatePicker = false
+                                }) {
+                                    Text(stringResource(R.string.action_pilih))
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { showDatePicker = false }) {
+                                    Text(stringResource(R.string.action_tutup))
+                                }
+                            },
+                        ) {
+                            DatePicker(state = datePickerState)
+                        }
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Box(modifier = Modifier.weight(1f)) {
+                                ShadcnTextField(
+                                    value = state.tanggalKejadian
+                                        ?.format(TanggalKejadianFormat)
+                                        .orEmpty(),
+                                    onValueChange = {},
+                                    label = stringResource(R.string.label_tanggal_kejadian),
+                                    placeholder = stringResource(R.string.placeholder_tanggal_kejadian),
+                                    readOnly = true,
+                                    trailingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Filled.DateRange,
+                                            contentDescription = null,
+                                            tint = MelatiMutedForeground,
+                                        )
+                                    },
+                                    error = state.serverFieldErrors[LaporanField.TANGGAL_KEJADIAN]
+                                        ?: errorTextFor(state.fieldErrors[LaporanField.TANGGAL_KEJADIAN]),
+                                )
+                                // Lapisan transparan: klik di mana pun pada field
+                                // (termasuk label) membuka kalender, tanpa keyboard.
+                                Box(
+                                    modifier = Modifier
+                                        .matchParentSize()
+                                        .clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = null,
+                                            onClick = { showDatePicker = true },
+                                        ),
+                                )
+                            }
+                            if (state.tanggalKejadian != null) {
+                                IconButton(onClick = {
+                                    onEvent(LaporanEvent.TanggalKejadianChanged(null))
+                                }) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Close,
+                                        contentDescription = stringResource(R.string.cd_hapus_tanggal),
+                                        tint = MelatiMutedForeground,
+                                    )
+                                }
+                            }
+                        }
+                        Text(
+                            text = stringResource(R.string.hint_tanggal_kejadian),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MelatiMutedForeground,
+                        )
+                    }
+                }
+
+                // ===== Judul =====
+                val judulLabel = when (state.type) {
+                    TicketType.LAPOR -> stringResource(R.string.label_judul_pengaduan)
+                    TicketType.ASPIRASI -> stringResource(R.string.label_judul_aspirasi)
+                    TicketType.PERMINTAAN_INFORMASI -> stringResource(R.string.label_judul_permintaan_informasi)
+                    else -> stringResource(R.string.label_judul)
+                }
+                val judulPlaceholder = when (state.type) {
+                    TicketType.LAPOR -> stringResource(R.string.placeholder_judul_pengaduan)
+                    TicketType.ASPIRASI -> stringResource(R.string.placeholder_judul_aspirasi)
+                    TicketType.PERMINTAAN_INFORMASI -> stringResource(R.string.placeholder_judul_permintaan_informasi)
+                    else -> ""
+                }
+                val isiPlaceholder = when (state.type) {
+                    TicketType.LAPOR -> stringResource(R.string.placeholder_isi_pengaduan)
+                    TicketType.ASPIRASI -> stringResource(R.string.placeholder_isi_aspirasi)
+                    TicketType.PERMINTAAN_INFORMASI -> stringResource(R.string.placeholder_isi_permintaan_informasi)
+                    else -> ""
+                }
                 ShadcnTextField(
                     value = state.subject,
                     onValueChange = { onEvent(LaporanEvent.SubjectChanged(it)) },
-                    label = stringResource(R.string.label_judul),
+                    label = judulLabel,
+                    placeholder = judulPlaceholder,
+                    hint = stringResource(R.string.hint_wajib),
                     error = state.serverFieldErrors[LaporanField.SUBJECT]
                         ?: errorTextFor(state.fieldErrors[LaporanField.SUBJECT]),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Next,
+                    ),
                 )
-                ShadcnTextField(
-                    value = state.body,
-                    onValueChange = { onEvent(LaporanEvent.BodyChanged(it)) },
-                    label = stringResource(R.string.label_isi),
-                    error = state.serverFieldErrors[LaporanField.BODY]
-                        ?: errorTextFor(state.fieldErrors[LaporanField.BODY]),
-                    singleLine = false,
-                    minLines = 5,
-                )
+
+                // ===== Isi laporan =====
+                val isiLabel = when (state.type) {
+                        TicketType.LAPOR -> stringResource(R.string.label_isi_pengaduan)
+                        TicketType.ASPIRASI -> stringResource(R.string.label_isi_aspirasi)
+                        TicketType.PERMINTAAN_INFORMASI -> stringResource(R.string.label_isi_permintaan_informasi)
+                        else -> stringResource(R.string.label_isi)
+                    }
+                    ShadcnTextField(
+                        value = state.body,
+                        onValueChange = { onEvent(LaporanEvent.BodyChanged(it)) },
+                        label = isiLabel,
+                        placeholder = isiPlaceholder,
+                        error = state.serverFieldErrors[LaporanField.BODY]
+                            ?: errorTextFor(state.fieldErrors[LaporanField.BODY]),
+                        singleLine = false,
+                        minLines = 5,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Text,
+                            imeAction = ImeAction.Default,
+                        ),
+                    )
 
                 // ===== Lampiran =====
                 LampiranSection(
                     state = state,
                     onRemove = { onEvent(LaporanEvent.AttachmentRemoved(it)) },
-                    onPick = { pickLampiran.launch(arrayOf("image/jpeg", "application/pdf")) },
+                    onPick = { pickLampiran.launch(arrayOf("image/jpeg", "image/png", "application/pdf")) },
                 )
 
                 // ===== Banner error umum =====
@@ -307,6 +453,8 @@ private fun CreatedTicketDialog(
     val context = LocalContext.current
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
+    val appName = stringResource(R.string.app_name)
+    val copiedMessage = stringResource(R.string.ticket_number_copied)
 
     ShadcnDialog(onDismissRequest = { onEvent(LaporanEvent.CreatedTicketDismissed) }) {
         Box(modifier = Modifier.fillMaxWidth()) {
@@ -372,13 +520,14 @@ private fun CreatedTicketDialog(
                             clipboard.setClipEntry(
                                 ClipEntry(
                                     ClipData.newPlainText(
-                                        context.getString(R.string.app_name),
+                                        appName,
                                         tiketBaru.number,
                                     ),
                                 ),
                             )
+                            snackbarHostState.currentSnackbarData?.dismiss()
                             snackbarHostState.showSnackbar(
-                                context.getString(R.string.ticket_number_copied),
+                                copiedMessage,
                             )
                         }
                     },
@@ -401,6 +550,7 @@ private fun errorTextFor(error: FormError?): String? = when (error) {
     FormError.REQUIRED -> stringResource(R.string.error_required)
     FormError.INVALID_EMAIL -> stringResource(R.string.error_email_invalid)
     FormError.INVALID_PHONE -> stringResource(R.string.error_phone_invalid)
+    FormError.INVALID_DATE -> stringResource(R.string.error_date_future)
     FormError.TOO_LONG -> stringResource(R.string.error_too_long)
     else -> null
 }

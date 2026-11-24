@@ -16,12 +16,15 @@ import java.util.concurrent.TimeUnit
  */
 object NetworkModule {
 
-    private const val API_KEY_HEADER = "X-API-Key"
+    private const val API_KEY_HEADER = "X-API-KEY"
 
     fun createApi(baseUrl: String = BuildConfig.BASE_URL): MelatiApi {
         val logging = HttpLoggingInterceptor().apply {
-            level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BASIC
+            level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY
             else HttpLoggingInterceptor.Level.NONE
+            redactHeader("X-API-KEY")
+            redactHeader("X-API-Key")
+            redactHeader("Authorization")
         }
 
         val client = OkHttpClient.Builder()
@@ -31,12 +34,12 @@ object NetworkModule {
             .retryOnConnectionFailure(true)
             .addInterceptor { chain ->
                 val key = BuildConfig.API_KEY
-                val request = if (key.isBlank()) {
-                    chain.request()
-                } else {
-                    chain.request().newBuilder().header(API_KEY_HEADER, key).build()
+                val builder = chain.request().newBuilder()
+                    .header("Accept", "application/json")
+                if (key.isNotBlank()) {
+                    builder.header(API_KEY_HEADER, key)
                 }
-                chain.proceed(request)
+                chain.proceed(builder.build())
             }
             .addInterceptor(logging)
             .build()

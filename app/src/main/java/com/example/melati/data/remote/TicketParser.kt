@@ -160,6 +160,12 @@ internal fun parseApiError(code: Int, body: String?): ApiException {
         }.toMap()
     }.orEmpty()
 
-    val message = obj?.pickString("message", "error", "pesan", "detail", "exception")
+    val rawMessage = obj?.pickString("message", "error", "pesan", "detail", "exception")
+    val message = if (fieldErrors.isNotEmpty()) {
+        val firstErrorMessage = fieldErrors.values.firstOrNull()
+        firstErrorMessage ?: rawMessage
+    } else {
+        rawMessage
+    }
     return ApiException(ApiException.Kind.HTTP, serverMessage = message, fieldErrors = fieldErrors, httpCode = code)
 }

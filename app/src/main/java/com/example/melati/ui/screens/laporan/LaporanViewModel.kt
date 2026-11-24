@@ -3,13 +3,11 @@ package com.example.melati.ui.screens.laporan
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
-import android.util.Patterns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.melati.R
 import com.example.melati.data.remote.ApiException
 import com.example.melati.domain.model.Attachment
-import com.example.melati.domain.model.LayananType
 import com.example.melati.domain.model.TicketDraft
 import com.example.melati.domain.model.TicketType
 import com.example.melati.domain.repository.TicketRepository
@@ -33,20 +31,14 @@ class LaporanViewModel(
 
     fun onEvent(event: LaporanEvent) {
         when (event) {
-            is LaporanEvent.TypeSelected -> _state.update {
-                it.copy(
-                    type = event.type,
-                    // Lapor hanya punya satu sub-layanan (PST), jadi langsung
-                    // dipilihkan agar pengguna tidak perlu memilih lagi.
-                    layanan = if (event.type == TicketType.LAPOR) LayananType.PST else null,
-                    fieldErrors = it.fieldErrors - LaporanField.TYPE - LaporanField.LAYANAN,
-                    serverFieldErrors = it.serverFieldErrors - LaporanField.TYPE - LaporanField.LAYANAN
-                )
-            }
+            // Lapor hanya punya satu sub-layanan (PST); pindah ke jenis lain
+            // mereset layanan dan tanggal kejadian lewat [withType].
+            is LaporanEvent.TypeSelected -> _state.update { it.withType(event.type) }
 
             is LaporanEvent.NameChanged -> updateField(LaporanField.NAME) { it.copy(name = event.value) }
             is LaporanEvent.EmailChanged -> updateField(LaporanField.EMAIL) { it.copy(email = event.value) }
             is LaporanEvent.PhoneChanged -> updateField(LaporanField.PHONE) { it.copy(phone = event.value) }
+            is LaporanEvent.TanggalKejadianChanged -> updateField(LaporanField.TANGGAL_KEJADIAN) { it.copy(tanggalKejadian = event.date) }
             is LaporanEvent.SubjectChanged -> updateField(LaporanField.SUBJECT) { it.copy(subject = event.value) }
             is LaporanEvent.BodyChanged -> updateField(LaporanField.BODY) { it.copy(body = event.value) }
 
@@ -176,12 +168,14 @@ class LaporanViewModel(
 
     private fun normalizeMime(raw: String?): String? = when (raw?.lowercase()) {
         "image/jpg", "image/pjpeg" -> "image/jpeg"
+        "image/png" -> "image/png"
         "application/x-pdf" -> "application/pdf"
         else -> raw
     }
 
     private fun guessMime(fileName: String): String? = when (fileName.substringAfterLast('.', "").lowercase()) {
         "jpg", "jpeg" -> "image/jpeg"
+        "png" -> "image/png"
         "pdf" -> "application/pdf"
         else -> null
     }
@@ -204,6 +198,8 @@ class LaporanViewModel(
             reporterName = current.name.trim(),
             reporterEmail = current.email.trim().takeIf { it.isNotEmpty() },
             reporterPhone = current.phone.trim().takeIf { it.isNotEmpty() },
+            tanggalKejadian = current.tanggalKejadian
+                .takeIf { current.type == TicketType.LAPOR },
             subject = current.subject.trim().takeIf { it.isNotEmpty() },
             body = current.body.trim(),
             attachments = current.attachments
@@ -224,9 +220,19 @@ class LaporanViewModel(
                         attachment.uri.path?.let { runCatching { File(it).delete() } }
                     }
                     _state.update {
+                        // reset form, keep createdTicket for dialog
                         it.copy(
                             isSubmitting = false,
                             createdTicket = created,
+                            // all other fields default (optional)
+                            name = "",
+                            email = "",
+                            phone = "",
+                            subject = "",
+                            body = "",
+                            tanggalKejadian = null,
+                            type = null,
+                            layanan = null,
                             attachments = emptyList()
                         )
                     }
@@ -246,31 +252,8 @@ class LaporanViewModel(
         }
     }
 
-    private fun validate(state: LaporanUiState): Map<LaporanField, FormError> {
-        val errors = mutableMapOf<LaporanField, FormError>()
-
-        if (state.type == null) errors[LaporanField.TYPE] = FormError.REQUIRED
-        if (state.type == TicketType.LAPOR && state.layanan == null) {
-            errors[LaporanField.LAYANAN] = FormError.REQUIRED
-        }
-        if (state.name.isBlank()) errors[LaporanField.NAME] = FormError.REQUIRED
-        // Server menolak tiket tanpa `title` (422 "Kolom title wajib diisi"),
-        // meski PRD menyebutnya opsional — validasi klien mengikuti server.
-        if (state.subject.isBlank()) errors[LaporanField.SUBJECT] = FormError.REQUIRED
-        if (state.body.isBlank()) errors[LaporanField.BODY] = FormError.REQUIRED
-
-        val email = state.email.trim()
-        if (email.isNotEmpty() && !Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            errors[LaporanField.EMAIL] = FormError.INVALID_EMAIL
-        }
-
-        val phone = state.phone.trim()
-        if (phone.isNotEmpty() && !PHONE_PATTERN.matches(phone)) {
-            errors[LaporanField.PHONE] = FormError.INVALID_PHONE
-        }
-
-        return errors
-    }
+    private fun validate(state: LaporanUiState): Map<LaporanField, FormError> =
+        LaporanValidator.validate(state)
 
     private fun errorMessage(api: ApiException): String {
         val serverMessage = api.serverMessage
@@ -309,9 +292,5 @@ class LaporanViewModel(
 
     private fun resetForm() {
         _state.value = LaporanUiState()
-    }
-
-    private companion object {
-        val PHONE_PATTERN = Regex("^\\+?[0-9\\s\\-]{8,20}$")
     }
 }

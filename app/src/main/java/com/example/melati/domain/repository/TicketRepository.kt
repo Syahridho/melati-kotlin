@@ -26,7 +26,11 @@ interface TicketRepository {
     suspend fun checkTicket(number: String): Result<Ticket>
 
     /** PRD §5.2: balasan pelapor pada thread tiket. */
-    suspend fun replyToTicket(number: String, body: String, attachments: List<Attachment>): Result<Unit>
+    suspend fun replyToTicket(
+        number: String,
+        body: String,
+        attachments: List<Attachment>
+    ): Result<Unit>
 
     /** PRD §5.2: tandai tiket selesai. */
     suspend fun completeTicket(number: String): Result<Unit>

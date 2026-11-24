@@ -60,6 +60,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -260,7 +261,12 @@ fun ShadcnTextField(
     keyboardActions: KeyboardActions = KeyboardActions.Default,
     singleLine: Boolean = true,
     minLines: Int = 1,
+    maxLines: Int = Int.MAX_VALUE,
+    minHeight: Dp? = null,
+    showErrorBelow: Boolean = true,
     enabled: Boolean = true,
+    readOnly: Boolean = false,
+    trailingIcon: (@Composable () -> Unit)? = null,
 ) {
     var focused by remember { mutableStateOf(false) }
 
@@ -310,17 +316,21 @@ fun ShadcnTextField(
                 onValueChange = onValueChange,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .heightIn(min = minHeight ?: if (singleLine) 48.dp else 120.dp)
                     .onFocusChanged { focused = it.isFocused },
                 enabled = enabled,
+                readOnly = readOnly,
                 isError = error != null,
                 singleLine = singleLine,
                 minLines = minLines,
+                maxLines = maxLines,
+                trailingIcon = trailingIcon,
                 placeholder = if (placeholder != null) {
                     {
                         Text(
                             text = placeholder,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MelatiPlaceholder,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                         )
                     }
                 } else {
@@ -347,7 +357,7 @@ fun ShadcnTextField(
             )
         }
 
-        if (error != null) {
+        if (error != null && showErrorBelow) {
             Text(
                 text = error,
                 style = MaterialTheme.typography.labelSmall,
@@ -626,6 +636,7 @@ fun ShadcnFileChip(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MelatiForeground,
                 maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = meta,

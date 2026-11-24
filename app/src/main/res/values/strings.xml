@@ -13,10 +13,31 @@
     <string name="label_nama">Nama lengkap</string>
     <string name="label_email">Email</string>
     <string name="label_telepon">Nomor telepon</string>
+    <string name="label_tanggal_kejadian">Tanggal kejadian</string>
+    <string name="placeholder_nama">Masukkan nama lengkap Anda</string>
+    <string name="placeholder_email">nama@email.com</string>
+    <string name="placeholder_telepon">08xxxxxxxxxx</string>
+    <string name="placeholder_tanggal_kejadian">dd/mm/yyyy</string>
+    <string name="hint_tanggal_kejadian">Pilih tanggal hari ini atau sebelumnya.</string>
+    <string name="cd_hapus_tanggal">Hapus tanggal kejadian</string>
+    <string name="action_pilih">Pilih</string>
+    <string name="error_date_future">Tanggal tidak boleh lebih dari hari ini</string>
     <string name="label_judul">Judul</string>
+    <string name="label_judul_pengaduan">Judul pengaduan</string>
+    <string name="label_judul_aspirasi">Judul aspirasi</string>
+    <string name="label_judul_permintaan_informasi">Judul permintaan informasi</string>
+    <string name="placeholder_judul_pengaduan">Tuliskan judul pengaduan Anda</string>
+    <string name="placeholder_judul_aspirasi">Tuliskan judul aspirasi Anda</string>
+    <string name="placeholder_judul_permintaan_informasi">Tuliskan judul permintaan informasi Anda</string>
+    <string name="label_isi_pengaduan">Isi pengaduan</string>
+    <string name="label_isi_aspirasi">Isi aspirasi</string>
+    <string name="label_isi_permintaan_informasi">Isi permintaan informasi</string>
+    <string name="placeholder_isi_pengaduan">Jelaskan pengaduan Anda secara rinci</string>
+    <string name="placeholder_isi_aspirasi">Sampaikan aspirasi Anda</string>
+    <string name="placeholder_isi_permintaan_informasi">Jelaskan informasi yang Anda butuhkan</string>
     <string name="label_isi">Isi laporan</string>
     <string name="label_lampiran">Lampiran (opsional)</string>
-    <string name="lampiran_hint">Maksimal 3 file, 2 MB per file, format JPG atau PDF.</string>
+    <string name="lampiran_hint">Maksimal 3 file, 2 MB per file, format JPG, PNG, atau PDF.</string>
     <string name="action_tambah_lampiran">Tambah lampiran</string>
     <string name="action_kirim">Kirim</string>
     <string name="state_mengirim">Mengirim…</string>
@@ -26,10 +47,11 @@
     <string name="error_email_invalid">Format email tidak valid</string>
     <string name="error_phone_invalid">Format nomor telepon tidak valid</string>
     <string name="error_too_long">Teks terlalu panjang</string>
-    <string name="error_file_type">Hanya file JPG atau PDF yang diperbolehkan</string>
+    <string name="error_file_type">Hanya file JPG, PNG, atau PDF yang diperbolehkan</string>
     <string name="error_file_size">Ukuran file melebihi 2 MB</string>
     <string name="error_file_count">Maksimal 3 lampiran</string>
     <string name="error_network">Tidak dapat terhubung ke server. Periksa koneksi internet Anda.</string>
+    <string name="error_rate_limited">Terlalu banyak permintaan. Silakan tunggu beberapa saat.</string>
     <string name="error_generic">Terjadi kesalahan. Silakan coba lagi.</string>
     <string name="error_unauthorized">Akses ke server ditolak. Silakan hubungi administrator BPS.</string>
     <string name="cd_hapus_lampiran">Hapus lampiran</string>
@@ -46,7 +68,7 @@
     <string name="cek_title">Cek Tiket</string>
     <string name="cek_subtitle">Masukkan nomor tiket untuk melihat status dan percakapan.</string>
     <string name="label_nomor_tiket">Nomor tiket</string>
-    <string name="placeholder_nomor_tiket">Contoh: L-2026-0001</string>
+    <string name="placeholder_nomor_tiket">Contoh: A-1400/112026/AS38</string>
     <string name="action_cek">Cek</string>
     <string name="cek_not_found_title">Tiket tidak ditemukan</string>
     <string name="cek_not_found_message">Periksa kembali nomor tiket Anda. Pastikan tidak ada karakter yang tertukar.</string>
@@ -58,7 +80,7 @@
     <string name="conversation_title">Percakapan</string>
     <string name="conversation_empty">Belum ada balasan dari petugas.</string>
     <string name="label_lampiran_pesan">Lampiran</string>
-    <string name="placeholder_balas">Tulis balasan…</string>
+    <string name="placeholder_balas">Tulis balasan Anda...</string>
     <string name="action_kirim_balasan">Kirim balasan</string>
     <string name="reply_disabled_closed">Tiket sudah selesai. Balasan tidak dapat dikirim.</string>
     <string name="action_selesai">Tandai Selesai</string>
@@ -73,6 +95,10 @@
     <string name="reply_sent">Balasan terkirim</string>
     <string name="ticket_completed">Tiket ditandai selesai</string>
     <string name="reply_gagal">Balasan gagal dikirim</string>
+    <string name="error_ticket_closed_reply">Tiket telah selesai dan tidak dapat dibalas.</string>
+    <string name="error_ticket_finished">Tiket sudah selesai.</string>
+    <string name="error_too_many_attempts">Terlalu banyak percobaan. Silakan coba lagi nanti.</string>
+    <string name="error_reply_min_length">Pesan balasan minimal 5 karakter.</string>
     <string name="complete_gagal">Gagal menandai tiket selesai</string>
 
     <!-- Tab Riwayat -->

@@ -5,11 +5,13 @@ import com.example.melati.domain.model.LayananType
 import com.example.melati.domain.model.TicketCreated
 import com.example.melati.domain.model.TicketType
 
+import java.time.LocalDate
+
 /** Field form yang bisa menghasilkan error validasi. */
-enum class LaporanField { TYPE, LAYANAN, NAME, EMAIL, PHONE, SUBJECT, BODY }
+enum class LaporanField { TYPE, LAYANAN, NAME, EMAIL, PHONE, SUBJECT, BODY, TANGGAL_KEJADIAN }
 
 /** Jenis kesalahan form; pemetaan ke teks dilakukan di lapisan UI. */
-enum class FormError { REQUIRED, INVALID_EMAIL, INVALID_PHONE, FILE_TYPE, FILE_SIZE, FILE_COUNT, TOO_LONG }
+enum class FormError { REQUIRED, INVALID_EMAIL, INVALID_PHONE, FILE_TYPE, FILE_SIZE, FILE_COUNT, TOO_LONG, INVALID_DATE }
 
 data class LaporanUiState(
     val type: TicketType? = null,
@@ -17,6 +19,7 @@ data class LaporanUiState(
     val name: String = "",
     val email: String = "",
     val phone: String = "",
+    val tanggalKejadian: LocalDate? = null,
     val subject: String = "",
     val body: String = "",
     val attachments: List<Attachment> = emptyList(),
@@ -31,11 +34,25 @@ data class LaporanUiState(
     val canSubmit: Boolean get() = !isSubmitting
 }
 
+/**
+ * Pindah klasifikasi: layanan dan tanggal kejadian hanya berlaku untuk
+ * Pengaduan, jadi keduanya direset saat pengguna memilih jenis lain.
+ * Dipisah dari ViewModel agar bisa diuji tanpa Context Android.
+ */
+fun LaporanUiState.withType(type: TicketType): LaporanUiState = copy(
+    type = type,
+    layanan = if (type == TicketType.LAPOR) LayananType.PST else null,
+    tanggalKejadian = if (type == TicketType.LAPOR) tanggalKejadian else null,
+    fieldErrors = fieldErrors - LaporanField.TYPE - LaporanField.LAYANAN - LaporanField.TANGGAL_KEJADIAN,
+    serverFieldErrors = serverFieldErrors - LaporanField.TYPE - LaporanField.LAYANAN - LaporanField.TANGGAL_KEJADIAN
+)
+
 sealed interface LaporanEvent {
     data class TypeSelected(val type: TicketType) : LaporanEvent
     data class NameChanged(val value: String) : LaporanEvent
     data class EmailChanged(val value: String) : LaporanEvent
     data class PhoneChanged(val value: String) : LaporanEvent
+    data class TanggalKejadianChanged(val date: LocalDate?) : LaporanEvent
     data class SubjectChanged(val value: String) : LaporanEvent
     data class BodyChanged(val value: String) : LaporanEvent
     data class AttachmentsPicked(val uris: List<android.net.Uri>) : LaporanEvent

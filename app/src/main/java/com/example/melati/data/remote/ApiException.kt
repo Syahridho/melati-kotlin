@@ -21,6 +21,8 @@ class ApiException(
             ?.let { it.contains("tidak ditemukan") || it.contains("not found") || it.contains("tidak ada") }
             ?: false
 
-    /** Server menolak identitas klien (API key salah / tidak ada). */
-    val isUnauthorized: Boolean get() = httpCode == 401 || httpCode == 403
+    /**
+     * Server menolak identitas klien (API key salah / tidak ada). Hanya 401.
+     */
+    val isUnauthorized: Boolean get() = httpCode == 401
 }
