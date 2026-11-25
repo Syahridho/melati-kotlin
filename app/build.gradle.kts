@@ -88,6 +88,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.datastore.preferences)
+    implementation("io.coil-kt:coil-compose:2.7.0")
 
     implementation(libs.retrofit)
     implementation(libs.retrofit.kotlinx.serialization)

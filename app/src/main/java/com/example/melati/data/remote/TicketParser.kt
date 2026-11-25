@@ -3,6 +3,7 @@ package com.example.melati.data.remote
 import com.example.melati.domain.model.LayananType
 import com.example.melati.domain.model.MessageAuthor
 import com.example.melati.domain.model.Ticket
+import com.example.melati.domain.model.TicketAttachment
 import com.example.melati.domain.model.TicketCreated
 import com.example.melati.domain.model.TicketMessage
 import com.example.melati.domain.model.TicketStatus
@@ -101,11 +102,9 @@ internal object TicketParser {
                 body = body,
                 author = resolveAuthor(obj, defaultAuthor),
                 createdAt = obj.pickString(*CREATED_KEYS),
-                attachmentNames = obj.pickArray("attachments", "lampiran")
-                    ?.mapNotNull { it.asObjectOrNull()?.pickString("file_name", "filename", "name", "nama") }
-                    .orEmpty()
+                attachments = parseAttachments(obj)
             )
-        }
+        }.sortedWith(compareByDescending<TicketMessage> { it.createdAt ?: "" })
     }
 
     /** Beberapa API hanya menyimpan satu field `response` berupa teks. */
@@ -114,6 +113,34 @@ internal object TicketParser {
             ?.takeIf { it.isNotBlank() }
             ?: return emptyList()
         return listOf(TicketMessage(id = null, body = response, author = MessageAuthor.ADMIN))
+    }
+
+    private fun parseAttachments(obj: JsonObject): List<TicketAttachment> {
+        val array = obj.pickArray(
+            "attachments", "files", "response_attachments", "lampiran", "attachment", "daftar_lampiran"
+        ) ?: return emptyList()
+        return array.mapNotNull { element ->
+            val o = element.asObjectOrNull()
+            if (o == null) {
+                val text = element.asStringOrNull()?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                TicketAttachment(name = text.substringAfterLast('/'), path = text)
+            } else {
+                val name = o.pickString(
+                    "file_name", "filename", "name", "nama", "original_name", "original_filename"
+                ) ?: o.pickString("url", "path", "file", "file_path", "storage_path")
+                    ?.substringAfterLast('/')
+                    ?: "lampiran"
+                val url = o.pickString("url", "file_url", "download_url", "src", "href")
+                val path = o.pickString(
+                    "path", "file_path", "storage_path", "relative_path", "location", "file"
+                )
+                val mime = o.pickString("mime_type", "mimetype", "mime", "content_type", "type")
+                val size = o.pickString("size", "size_bytes", "bytes", "file_size")?.toLongOrNull()
+                    ?: (o.pick("size", "size_bytes", "bytes", "file_size") as? kotlinx.serialization.json.JsonPrimitive)
+                        ?.content?.toLongOrNull()
+                TicketAttachment(url = url, path = path, name = name, mimeType = mime, sizeBytes = size)
+            }
+        }
     }
 
     private fun resolveAuthor(obj: JsonObject, default: MessageAuthor): MessageAuthor {

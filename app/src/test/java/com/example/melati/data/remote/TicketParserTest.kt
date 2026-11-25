@@ -79,7 +79,7 @@ class TicketParserTest {
 
         assertEquals(2, ticket.messages.size)
         assertTrue(ticket.messages.all { it.author == MessageAuthor.ADMIN })
-        assertEquals("Terima kasih atas laporannya.", ticket.messages.first().body)
+        assertEquals("Sedang kami tindak lanjuti.", ticket.messages.first().body)
     }
 
     @Test
@@ -166,5 +166,56 @@ class TicketParserTest {
         }
 
         assertEquals(ApiException.Kind.INVALID_RESPONSE, error.kind)
+    }
+
+    @Test
+    fun `lampiran balasan admin terpetakan`() {
+        val body = """
+            {
+              "ticket_number": "A-1400/112026/AS38",
+              "responses": [
+                {
+                  "id": 1,
+                  "message": "Balasan petugas",
+                  "is_reporter": false,
+                  "created_at": "2026-11-25T10:00:00",
+                  "attachments": [
+                    {"file_name": "a.png", "url": "https://test.syahridho.my.id/storage/response_attachments/38/a.png", "mime_type": "image/png", "size": 100},
+                    {"name": "b.pdf", "path": "/storage/response_attachments/38/b.pdf", "mime_type": "application/pdf", "size_bytes": 200}
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val ticket = TicketParser.parseTicket(body)
+
+        assertEquals(1, ticket.messages.size)
+        assertEquals(2, ticket.messages.first().attachments.size)
+        assertEquals("a.png", ticket.messages.first().attachments[0].name)
+        assertEquals("image/png", ticket.messages.first().attachments[0].mimeType)
+        assertEquals("b.pdf", ticket.messages.first().attachments[1].name)
+    }
+
+    @Test
+    fun `pesan tanpa lampiran tetap terpetakan`() {
+        val body = """{"ticket_number":"L-1","responses":[{"message":"ok","is_reporter":true}]}"""
+        val ticket = TicketParser.parseTicket(body)
+        assertTrue(ticket.messages.first().attachments.isEmpty())
+    }
+
+    @Test
+    fun `pesan terbaru berada di atas`() {
+        val body = """
+            {
+              "ticket_number": "L-2",
+              "responses": [
+                {"message":"lama","is_reporter":false,"created_at":"2026-10-01"},
+                {"message":"baru","is_reporter":false,"created_at":"2026-10-02"}
+              ]
+            }
+        """.trimIndent()
+        val ticket = TicketParser.parseTicket(body)
+        assertEquals("baru", ticket.messages.first().body)
     }
 }

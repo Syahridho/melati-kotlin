@@ -45,6 +45,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -104,6 +105,11 @@ fun CekScreen(
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val listState = rememberLazyListState()
+
+    // Reset state saat layar Cek ditinggalkan (termasuk saat pindah tab).
+    DisposableEffect(Unit) {
+        onDispose { onEvent(CekEvent.Reset) }
+    }
     val pickReplyAttachments = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenMultipleDocuments()
     ) { uris ->
@@ -125,11 +131,11 @@ fun CekScreen(
     }
 
     // Auto-scroll ke pesan terbaru.
+    // Pesan terbaru di atas: scroll ke item pertama percakapan.
     LaunchedEffect(state.ticket?.messages?.size, state.phase) {
         val jumlahPesan = state.ticket?.messages?.size ?: return@LaunchedEffect
-        val target = if (jumlahPesan > 0) 3 + jumlahPesan else 4
-        if (listState.layoutInfo.totalItemsCount > 0) {
-            listState.animateScrollToItem(target.coerceAtMost(listState.layoutInfo.totalItemsCount - 1))
+        if (jumlahPesan > 0 && listState.layoutInfo.totalItemsCount > 0) {
+            listState.animateScrollToItem(4.coerceAtMost(listState.layoutInfo.totalItemsCount - 1))
         }
     }
 
@@ -653,7 +659,7 @@ private fun PreviewCekThread() {
                                 body = "Terima kasih, permintaan Anda sedang kami proses.",
                                 author = MessageAuthor.ADMIN,
                                 createdAt = "2026-10-21T08:00:00Z",
-                                attachmentNames = listOf("penjelasan-data.pdf"),
+                                attachments = listOf(com.example.melati.domain.model.TicketAttachment(name = "penjelasan-data.pdf")),
                             ),
                             TicketMessage(
                                 id = "2",

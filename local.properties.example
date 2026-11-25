@@ -1,0 +1,8 @@
+## Copy this file to local.properties and fill in your values.
+# Do NOT commit local.properties.
+
+sdk.dir=C\\:\\\\Users\\\\YOU\\\\AppData\\\\Local\\\\Android\\\\Sdk
+
+API_BASE_URL=https://test.syahridho.my.id/
+API_KEY=your_api_key_here
+CHANNEL_ID=11

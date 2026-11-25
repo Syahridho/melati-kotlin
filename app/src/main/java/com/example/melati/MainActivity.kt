@@ -38,6 +38,7 @@ import com.example.melati.di.AppContainer
 import com.example.melati.ui.navigation.MelatiBottomBar
 import com.example.melati.ui.navigation.MelatiNavHost
 import com.example.melati.ui.navigation.isTabSelected
+import com.example.melati.ui.navigation.navigateToTab
 import com.example.melati.ui.screens.splash.SplashScreen
 import com.example.melati.ui.theme.MelatiTheme
 import kotlinx.coroutines.delay
@@ -94,22 +95,12 @@ private fun MelatiApp(container: AppContainer) {
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets.systemBars,
         bottomBar = {
-            if (!imeVisible) {
-                MelatiBottomBar(
-                    currentRoute = currentRoute,
-                    onSelect = { tab ->
-                        if (!isTabSelected(currentRoute, tab)) {
-                            navController.navigate(tab.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
-                                }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        }
-                    },
-                )
-            }
+            MelatiBottomBar(
+                currentRoute = currentRoute,
+                onSelect = { tab ->
+                    navController.navigateToTab(tab.route)
+                },
+            )
         },
     ) { innerPadding ->
         Box(

@@ -11,8 +11,12 @@ import com.example.melati.domain.model.Attachment
 import com.example.melati.domain.model.Ticket
 import com.example.melati.domain.repository.TicketRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancelChildren
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
@@ -29,7 +33,18 @@ class CekViewModel(
     private val _state = MutableStateFlow(CekUiState())
     val state: StateFlow<CekUiState> = _state.asStateFlow()
 
+    // Event navigasi one-shot: tidak di-replay saat recomposition/restore.
+    private val _ticketOpened = MutableSharedFlow<String>(replay = 0, extraBufferCapacity = 1)
+    val ticketOpened: SharedFlow<String> = _ticketOpened.asSharedFlow()
+
     private var lastLoadedNumber: String? = null
+
+    /** Mengembalikan layar Cek ke kondisi awal dan membatalkan job yang berjalan. */
+    fun resetState() {
+        viewModelScope.coroutineContext.cancelChildren()
+        lastLoadedNumber = null
+        _state.value = CekUiState()
+    }
 
     /** Dipanggil dari navigasi saat pengguna membuka tiket dari Riwayat. */
     fun loadNumber(number: String) {
@@ -62,6 +77,8 @@ class CekViewModel(
             }
 
             CekEvent.MessageShown -> _state.update { it.copy(message = null) }
+
+            CekEvent.Reset -> resetState()
         }
     }
 
@@ -86,6 +103,7 @@ class CekViewModel(
                     _state.update {
                         it.copy(query = ticket.number, phase = CekPhase.Loaded(ticket))
                     }
+                    viewModelScope.launch { _ticketOpened.emit(ticket.number) }
                 },
                 onFailure = { throwable -> handleCheckFailure(query, throwable) }
             )

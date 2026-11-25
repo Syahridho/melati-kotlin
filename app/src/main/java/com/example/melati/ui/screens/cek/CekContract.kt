@@ -50,4 +50,5 @@ sealed interface CekEvent {
     data object ConfirmComplete : CekEvent
     data object DismissCompleteConfirm : CekEvent
     data object MessageShown : CekEvent
+    data object Reset : CekEvent
 }

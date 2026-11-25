@@ -4,11 +4,17 @@ import android.net.Uri
 
 object Routes {
     const val LAPORAN = "laporan"
-    const val CEK_BASE = "cek"
-    const val CEK = "cek?nomor={nomor}"
+    const val CEK = "cek"
+    const val CEK_DETAIL = "cek/{ticketId}"
     const val RIWAYAT = "riwayat"
-    const val ARG_NOMOR = "nomor"
+    const val ARG_TICKET_ID = "ticketId"
 
-    fun cek(nomor: String = ""): String =
-        if (nomor.isBlank()) CEK_BASE else "$CEK_BASE?$ARG_NOMOR=${Uri.encode(nomor)}"
+    /** Rute tab Cek (tanpa argumen) — dipakai bottom navigation. */
+    const val CEK_BASE = CEK
+
+    /** Rute detail tiket (destination tersendiri) agar back stack/tab konsisten. */
+    fun cek(number: String = ""): String =
+        if (number.isBlank()) CEK else "cek/${Uri.encode(number)}"
+
+    fun cekDetail(ticketId: String): String = "cek/${Uri.encode(ticketId)}"
 }

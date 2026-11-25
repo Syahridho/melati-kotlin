@@ -123,14 +123,28 @@ data class TicketCreated(
     val type: TicketType
 )
 
+/** Lampiran pada pesan thread tiket. */
+data class TicketAttachment(
+    val url: String? = null,
+    val path: String? = null,
+    val name: String,
+    val mimeType: String? = null,
+    val sizeBytes: Long? = null
+) {
+    /** Path/URL mentah yang akan dinormalisasi lewat resolveImageUrl. */
+    val rawSource: String? get() = url ?: path
+}
+
 /** Satu pesan dalam thread tiket. */
 data class TicketMessage(
     val id: String?,
     val body: String,
     val author: MessageAuthor,
     val createdAt: String? = null,
-    val attachmentNames: List<String> = emptyList()
-)
+    val attachments: List<TicketAttachment> = emptyList()
+) {
+    val attachmentNames: List<String> get() = attachments.map { it.name }
+}
 
 /** Detail tiket lengkap beserta percakapan. */
 data class Ticket(

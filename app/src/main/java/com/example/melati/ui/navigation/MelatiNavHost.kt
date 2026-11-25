@@ -3,7 +3,11 @@ package com.example.melati.ui.navigation
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Create
@@ -28,6 +32,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -47,6 +52,15 @@ import com.example.melati.ui.theme.MelatiMutedForeground
 import com.example.melati.ui.theme.MelatiPrimary
 import com.example.melati.ui.theme.MelatiSurface
 import androidx.compose.material3.SnackbarHostState
+
+/** Navigasi paksa ke tab: state lama tidak disimpan/dipulihkan. */
+fun androidx.navigation.NavController.navigateToTab(route: String) {
+    navigate(route) {
+        popUpTo(graph.findStartDestination().id) { saveState = false }
+        launchSingleTop = true
+        restoreState = false
+    }
+}
 
 /** Tiga tab utama aplikasi; urutan menentukan urutan di bilah bawah. */
 enum class MelatiTab(
@@ -78,6 +92,7 @@ fun MelatiBottomBar(
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .imePadding()
             .background(MelatiSurface),
     ) {
         HorizontalDivider(thickness = 1.dp, color = MelatiBorder)
@@ -143,16 +158,8 @@ fun MelatiNavHost(
             )
         }
 
-        composable(
-            route = Routes.CEK,
-            arguments = listOf(
-                navArgument(Routes.ARG_NOMOR) {
-                    type = NavType.StringType
-                    defaultValue = ""
-                }
-            )
-        ) { entry ->
-            val nomor = entry.arguments?.getString(Routes.ARG_NOMOR).orEmpty()
+        // Tab root Cek: layar pencarian, tanpa argumen (destination top-level).
+        composable(Routes.CEK) {
             val viewModel: CekViewModel = viewModel(
                 factory = viewModelFactory {
                     initializer { CekViewModel(container.ticketRepository, context.applicationContext) }
@@ -160,12 +167,54 @@ fun MelatiNavHost(
             )
             val state by viewModel.state.collectAsStateWithLifecycle()
 
-            LaunchedEffect(nomor) { viewModel.loadNumber(nomor) }
+            // Event navigasi one-shot: tidak di-replay saat recomposition/restore.
+            LaunchedEffect(Unit) {
+                viewModel.ticketOpened.collect { number ->
+                    navController.navigate(Routes.cekDetail(number)) { launchSingleTop = true }
+                }
+            }
 
             CekScreen(
                 state = state,
                 onEvent = viewModel::onEvent,
-                snackbarHostState = snackbarHostState
+                snackbarHostState = snackbarHostState,
+            )
+        }
+
+        // Detail tiket sebagai destination tersendiri agar back stack & tab konsisten.
+        composable(
+            route = Routes.CEK_DETAIL,
+            arguments = listOf(
+                navArgument(Routes.ARG_TICKET_ID) {
+                    type = NavType.StringType
+                    defaultValue = ""
+                }
+            )
+        ) { entry ->
+            val ticketId = entry.arguments?.getString(Routes.ARG_TICKET_ID).orEmpty()
+            val viewModel: CekViewModel = viewModel(
+                factory = viewModelFactory {
+                    initializer { CekViewModel(container.ticketRepository, context.applicationContext) }
+                }
+            )
+            val state by viewModel.state.collectAsStateWithLifecycle()
+
+            LaunchedEffect(ticketId) { viewModel.loadNumber(ticketId) }
+
+            // Jika pengguna mencari tiket lain dari layar detail, pindah ke
+            // destination detail yang baru (one-shot, tidak di-replay).
+            LaunchedEffect(Unit) {
+                viewModel.ticketOpened.collect { number ->
+                    if (number != ticketId) {
+                        navController.navigate(Routes.cekDetail(number)) { launchSingleTop = true }
+                    }
+                }
+            }
+
+            CekScreen(
+                state = state,
+                onEvent = viewModel::onEvent,
+                snackbarHostState = snackbarHostState,
             )
         }
 
@@ -181,7 +230,7 @@ fun MelatiNavHost(
                 state = state,
                 onEvent = { event ->
                     if (event is RiwayatEvent.Open) {
-                        navController.navigate(Routes.cek(event.number)) { launchSingleTop = true }
+                        navController.navigate(Routes.cekDetail(event.number)) { launchSingleTop = true }
                     } else {
                         viewModel.onEvent(event)
                     }
